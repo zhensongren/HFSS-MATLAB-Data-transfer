@@ -1,0 +1,36 @@
+%=============================== start
+%Setup up project information
+
+fln='i:\file.hfss';
+%gln=strcat(dir,fln)
+oAnsoftApp = actxserver('AnsoftHfss.HfssScriptInterface');
+oDesktop = oAnsoftApp.GetAppDesktop();
+oDesktop.RestoreWindow();
+%oDesign = oProject.SetActiveDesign('HFSSDesign1')
+oDesktop.OpenProject (fln)
+
+oProject = oDesktop.SetActiveProject('file');
+oDesign = oProject.SetActiveDesign('HFSSDesign1');
+
+%oModule = oDesign.GetModule('ReportSetup');
+oModule = oDesign.GetModule('Optimetrics');
+
+
+
+%oProject = oDesktop.SetActiveProject('file');
+
+
+
+%Set Variables
+
+oProject.ChangeProperty({'NAME:AllTabs', {'NAME:ProjectVariableTab', {'NAME:PropServers', ...
+'ProjectVariables'}, {'NAME:ChangedProps', ...
+{'NAME:$epsr', 'Value:=', '0.5'}, ...
+{'NAME:$miur', 'Value:=', '3'}, ...
+{'NAME:$etan_delta', 'Value:=', '.01'}, ...
+{'NAME:$mtan_delta', 'Value:=', '.05'}}}});
+
+%Save and Solve
+oProject.Save();
+oModule.SolveSetup('OptimizationSetup1')
+%=============================== end

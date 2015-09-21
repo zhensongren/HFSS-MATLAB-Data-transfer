@@ -1,0 +1,304 @@
+' EM extraction
+
+' EM Extraction V4
+' V4 adds ability to remove spatial dispersion from epsilon and mu resonances
+
+Sub Main ()
+'Matlab user settings
+Dim matlab_visible As Boolean
+Dim user_path, save_file_name As String
+matlab_visible = True 							'True to keep Matlab command window open, False to not display it
+user_path = "C:\Documents and Settings\padillalab\My Documents\MATLAB"	'path that Matlab opens to and any data is saved to
+save_file_name = "cst_data"						'name of .mat file matlab saves all data to
+
+'variable definitions
+Dim nf As Long
+Dim s11mag_cst
+Dim s11phase_cst 
+Dim s22mag_cst 
+Dim s22phase_cst 
+Dim s21mag_cst
+Dim s21phase_cst
+
+nf = Solver.GetNFsteps
+FreqConv = Units.GetFrequencyUnitToSI
+GeoConv = Units.GetGeometryUnitToSI
+
+Dim MImag() As Double
+Dim f() As Double
+Dim s11mag_mat() As Double
+Dim s11phase_mat() As Double
+Dim s22mag_mat() As Double
+Dim s22phase_mat() As Double
+Dim s21mag_mat() As Double
+Dim s21phase_mat() As Double
+Dim sendA(0) As Double
+Dim re_eps_eff() As Double
+Dim im_eps_eff() As Double
+Dim re_mu_eff() As Double
+Dim im_mu_eff() As Double
+Dim re_eps_av() As Double
+Dim im_eps_av() As Double
+Dim re_mu_av() As Double
+Dim im_mu_av() As Double
+Dim re_z_eff() As Double
+Dim im_z_eff() As Double
+Dim re_n_eff() As Double
+Dim im_n_eff() As Double
+
+ReDim f(nf-1) As Double
+ReDim s11mag_mat(nf-1) As Double
+ReDim s11phase_mat(nf-1) As Double
+ReDim s22mag_mat(nf-1) As Double
+ReDim s22phase_mat(nf-1) As Double
+ReDim s21mag_mat(nf-1) As Double
+ReDim s21phase_mat(nf-1) As Double
+ReDim re_eps_eff(nf-1) As Double
+ReDim im_eps_eff(nf-1) As Double
+ReDim re_mu_eff(nf-1) As Double
+ReDim im_mu_eff(nf-1) As Double
+ReDim re_eps_av(nf-1) As Double
+ReDim im_eps_av(nf-1) As Double
+ReDim re_mu_av(nf-1) As Double
+ReDim im_mu_av(nf-1) As Double
+ReDim re_z_eff(nf-1) As Double
+ReDim im_z_eff(nf-1) As Double
+ReDim re_n_eff(nf-1) As Double
+ReDim im_n_eff(nf-1) As Double
+
+
+Set s11mag_cst = Result1D("a1(1)1(1)")
+Set s11phase_cst = Result1D("p1(1)1(1)")
+Set s21mag_cst = Result1D("a2(1)1(1)")
+Set s21phase_cst = Result1D("p2(1)1(1)")
+
+For j = 0 To nf-1
+   	f(j) = FreqConv*s11mag_cst.GetX(j)
+   	s11mag_mat(j) = s11mag_cst.GetY(j)
+   	s11phase_mat(j) = s11phase_cst.GetY(j)
+   	s21mag_mat(j) = s21mag_cst.GetY(j)
+   	s21phase_mat(j) = s21phase_cst.GetY(j)
+    Next j
+
+'Matlab COM/ActiveX interaction
+	'------------------------------------------------------------------------------------
+	'1) create COM object and initiate Matlab as an activeX server
+    Set matlab = CreateObject("Matlab.Application")
+    If matlab_visible Then
+    	Result = matlab.Execute("h=actxserver('Matlab.Application');set(h,'visible',1);")
+    End If
+    '2) send all MWS data to Matlab using Automation methods (see app note for listing)
+    Call matlab.PutCharArray("user_path","base",user_path)
+    Call matlab.PutCharArray("save_file_name","base",save_file_name)
+    Call matlab.PutFullMatrix("s11mag","base",s11mag_mat,MImag)
+	Call matlab.PutFullMatrix("s11phase","base",s11phase_mat,MImag)
+	Call matlab.PutFullMatrix("s22mag","base",s22mag_mat,MImag)
+	Call matlab.PutFullMatrix("s22phase","base",s22phase_mat,MImag)
+	Call matlab.PutFullMatrix("s21mag","base",s21mag_mat,MImag)
+	Call matlab.PutFullMatrix("s21phase","base",s21phase_mat,MImag)
+    Call matlab.PutFullMatrix("f","base",f,MImag)
+		sendA(0) = d*GeoConv
+	Call matlab.PutFullMatrix("sendA","base",sendA,MImag)
+
+    '3) use Execute Command To control matlab engine
+    'use .m files for ease of use, note that .m files must be in user_path or linked at startup!
+    Result = matlab.Execute("cd(user_path);")
+    Result = matlab.Execute("em_extraction_v4;")
+    '4) retreive all data from Matlab to display in MWS
+    Call matlab.GetFullMatrix("re_eps_eff","base",re_eps_eff,MImag)
+    Call matlab.GetFullMatrix("im_eps_eff","base",im_eps_eff,MImag)
+    Call matlab.GetFullMatrix("re_mu_eff","base",re_mu_eff,MImag)
+    Call matlab.GetFullMatrix("im_mu_eff","base",im_mu_eff,MImag)
+    Call matlab.GetFullMatrix("re_eps_av","base",re_eps_av,MImag)
+    Call matlab.GetFullMatrix("im_eps_av","base",im_eps_av,MImag)
+    Call matlab.GetFullMatrix("re_mu_av","base",re_mu_av,MImag)
+    Call matlab.GetFullMatrix("im_mu_av","base",im_mu_av,MImag)
+    Call matlab.GetFullMatrix("re_z_eff","base",re_z_eff,MImag)
+	Call matlab.GetFullMatrix("im_z_eff","base",im_z_eff,MImag)
+	Call matlab.GetFullMatrix("re_n_eff","base",re_n_eff,MImag)
+	Call matlab.GetFullMatrix("im_z_eff","base",im_n_eff,MImag)
+
+    'display or store Matlab data in MWS form
+    '------------------------------------------------------------------------------------
+    '1) write any data you wish to display to a file
+    file_re_eps_eff = GetProjectBaseNameWithSeparator & "re_eps_eff.txt"
+    Open file_re_eps_eff For Output As #1
+    For j = 0 To nf-1
+    	Print #1,CStr(f(j)) & "   " & CStr(re_eps_eff(j))
+    Next j
+    Close #1
+    'Insert Matlab data into result tree
+   	With ResultTree
+		.Reset
+		.Name "1D Results\Matlab\Re e"
+		.Type "XYSignal"
+		.Subtype "Linear"
+		.Title "Real Epsilon computed in Matlab"
+		.Xlabel "Frequency, GHz"
+		.Ylabel "norm"
+		.File file_re_eps_eff
+		.Add
+	End With
+
+    file_ime_eps_eff = GetProjectBaseNameWithSeparator & "ime_eps_eff.txt"
+    Open file_ime_eps_eff For Output As #1
+    For j = 0 To nf-1
+    	Print #1,CStr(f(j)) & "   " & CStr(im_eps_eff(j))
+    Next j
+    Close #1
+
+   	With ResultTree
+		.Reset
+		.Name "1D Results\Matlab\Im e"
+		.Type "XYSignal"
+		.Subtype "Linear"
+		.Title "Imaginary Epsilon computed in Matlab"
+		.Xlabel "Frequency, GHz"
+		.Ylabel "norm"
+		.File file_ime_eps_eff
+		.Add
+	End With
+
+	file_re_mu_eff = GetProjectBaseNameWithSeparator & "re_mu_eff.txt"
+    Open file_re_mu_eff For Output As #1
+    For j = 0 To nf-1
+    	Print #1,CStr(f(j)) & "   " & CStr(re_mu_eff(j))
+    Next j
+    Close #1
+
+   	With ResultTree
+		.Reset
+		.Name "1D Results\Matlab\Re mu"
+		.Type "XYSignal"
+		.Subtype "Linear"
+		.Title "Real Mu computed in Matlab"
+		.Xlabel "Frequency, GHz"
+		.Ylabel "norm"
+		.File file_re_mu_eff
+		.Add
+	End With
+
+    file_im_mu_eff = GetProjectBaseNameWithSeparator & "im_mu_eff.txt"
+    Open file_im_mu_eff For Output As #1
+    For j = 0 To nf-1
+    	Print #1,CStr(f(j)) & "   " & CStr(im_mu_eff(j))
+    Next j
+    Close #1
+
+   	With ResultTree
+		.Reset
+		.Name "1D Results\Matlab\Im mu"
+		.Type "XYSignal"
+		.Subtype "Linear"
+		.Title "Imaginary Mu computed in Matlab"
+		.Xlabel "Frequency, GHz"
+		.Ylabel "norm"
+		.File file_im_mu_eff
+		.Add
+	End With
+
+	file_re_z_eff = GetProjectBaseNameWithSeparator & "re_z_eff.txt"
+    Open file_re_z_eff For Output As #1
+    For j = 0 To nf-1
+    	Print #1,CStr(f(j)) & "   " & CStr(re_z_eff(j))
+    Next j
+    Close #1
+
+   	With ResultTree
+		.Reset
+		.Name "1D Results\Matlab\Re z"
+		.Type "XYSignal"
+		.Subtype "Linear"
+		.Title "Real Z computed in Matlab"
+		.Xlabel "Frequency"
+		.Ylabel "norm"
+		.File file_re_z_eff
+		.Add
+	End With
+
+	file_im_z_eff = GetProjectBaseNameWithSeparator & "im_z_eff.txt"
+    Open file_im_z_eff For Output As #1
+    For j = 0 To nf-1
+    	Print #1,CStr(f(j)) & "   " & CStr(im_z_eff(j))
+    Next j
+    Close #1
+
+   	With ResultTree
+		.Reset
+		.Name "1D Results\Matlab\Im z"
+		.Type "XYSignal"
+		.Subtype "Linear"
+		.Title "Imaginary Z computed in Matlab"
+		.Xlabel "Frequency"
+		.Ylabel "norm"
+		.File file_im_z_eff
+		.Add
+	End With
+
+	file_re_n_eff = GetProjectBaseNameWithSeparator & "matlab_re_n_eff.txt"
+    Open file_re_n_eff For Output As #1
+    For j = 0 To nf-1
+    	Print #1,CStr(f(j)) & "   " & CStr(re_n_eff(j))
+    Next j
+    Close #1
+
+   	With ResultTree
+		.Reset
+		.Name "1D Results\Matlab\Re n"
+		.Type "XYSignal"
+		.Subtype "Linear"
+		.Title "Real n computed in Matlab"
+		.Xlabel "Frequency"
+		.Ylabel "norm"
+		.File file_re_n_eff
+		.Add
+	End With
+
+	file_im_n_eff = GetProjectBaseNameWithSeparator & "im_n_eff.txt"
+    Open file_im_n_eff For Output As #1
+    For j = 0 To nf-1
+    	Print #1,CStr(f(j)) & "   " & CStr(im_n_eff(j))
+    Next j
+    Close #1
+
+   	With ResultTree
+		.Reset
+		.Name "1D Results\Matlab\Im n"
+		.Type "XYSignal"
+		.Subtype "Linear"
+		.Title "Imaginary n computed in Matlab"
+		.Xlabel "Frequency"
+		.Ylabel "norm"
+		.File file_im_n_eff
+		.Add
+	End With
+
+	file_re_eps_av = GetProjectBaseNameWithSeparator & "re_eps_av.txt"
+    Open file_re_eps_av For Output As #1
+    For j = 0 To nf-1
+    	Print #1,CStr(f(j)) & "   " & CStr(re_eps_av(j))
+    Next j
+    Close #1
+
+    file_im_eps_av = GetProjectBaseNameWithSeparator & "im_eps_av.txt"
+    Open file_im_eps_av For Output As #1
+    For j = 0 To nf-1
+    	Print #1,CStr(f(j)) & "   " & CStr(im_eps_av(j))
+    Next j
+    Close #1
+
+	file_re_mu_av = GetProjectBaseNameWithSeparator & "re_mu_av.txt"
+    Open file_re_mu_av For Output As #1
+    For j = 0 To nf-1
+    	Print #1,CStr(f(j)) & "   " & CStr(re_mu_av(j))
+    Next j
+    Close #1
+
+    file_im_mu_av = GetProjectBaseNameWithSeparator & "im_mu_av.txt"
+    Open file_im_mu_av For Output As #1
+    For j = 0 To nf-1
+    	Print #1,CStr(f(j)) & "   " & CStr(im_mu_av(j))
+    Next j
+    Close #1
+
+End Sub
